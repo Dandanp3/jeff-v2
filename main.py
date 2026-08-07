@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 import os
 import traceback
 
-from server.controllers.serverController import ServerController
 import certifi
 ca = certifi.where()
 
@@ -22,11 +21,13 @@ class Kalif(commands.Bot):
         super().__init__(command_prefix=">", intents=intents)
         self.remove_command('help')
         self.mongo_client = AsyncIOMotorClient(MONGO_URI, tlsCAFile=ca)
-        self.db = self.mongo_client["kalif_bot"]
-        self.server_controller = ServerController(self.db["servers"])
+        #self.db = self.mongo_client["kalif_bot"]
+        #self.server_controller = ServerController(self.db["servers"])
 
     async def setup_hook(self):
-        extensions = [] 
+        extensions = [
+            "AI.jeff"
+        ] 
         
         for ext in extensions:
             try:
