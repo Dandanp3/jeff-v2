@@ -4,6 +4,7 @@ import discord
 from discord.ext import commands
 from groq import Groq
 from server.models.memoryModel import MemoryModel
+from .brain import BRAIN
 
 class Jeff(commands.Cog):
     def __init__(self, bot):
@@ -11,14 +12,11 @@ class Jeff(commands.Cog):
         groq_token = os.getenv('GROQ_API_KEY')
         self.client = Groq(api_key=groq_token)
         
-        # Instancia o modelo de memória apontando ESPECIFICAMENTE para o db_memory do main.py
         self.db = self.bot.db_memory
         self.memory = MemoryModel(self.db)
 
-        # Carrega o arquivo brain.json da mesma pasta onde este script está
-        brain_path = os.path.join(os.path.dirname(__file__), "brain.json")
-        with open(brain_path, "r", encoding="utf-8") as f:
-            self.brain = json.load(f)
+        # Carrega as configurações e prompts diretamente do brain.py
+        self.brain = BRAIN
 
     @commands.command(name="jeff", aliases=["j", "Jeff", "J"])
     async def jeff_command(self, ctx: commands.Context, *, message: str = None):
@@ -56,7 +54,7 @@ class Jeff(commands.Cog):
                         linhas.append(f"- {nome} (também chamado de {ent.get('aliases')}): Fatos conhecidos: {fatos}")
                     contexto_mencionados = "\nPESSOAS QUE FORAM CITADAS NA MENSAGEM:\n" + "\n".join(linhas)
 
-                # PROMPT JUÍZ (Carregado do brain.json)
+                # PROMPT JUÍZ 
                 judge_prompt = self.brain["judge_prompt"].replace("{historico_texto}", historico_texto).replace("{message}", message)
 
                 judge_completion = self.client.chat.completions.create(
@@ -72,19 +70,28 @@ class Jeff(commands.Cog):
                     score_change = avaliacao.get("score_change", 0)
                     mood = avaliacao.get("mood", "neutro")
                     extracted_fact = avaliacao.get("extracted_fact")
+                    server_topic = avaliacao.get("server_topic")
                 except json.JSONDecodeError:
                     score_change = 0
                     mood = "neutro"
                     extracted_fact = None
+                    server_topic = None
 
                 # Se o Juiz extraiu um fato e a mensagem citou algm, salva o fato no banco
                 if extracted_fact and mencionados:
                     await self.memory.add_fact_to_entity(mencionados[0]["user_id"], extracted_fact)
 
+                # Se o Juiz extraiu um tópico geral sobre o servidor, salva na Lore
+                if server_topic:
+                    await self.memory.add_server_topic(server_topic)
+
+                # Busca as fofocas recentes salvas na lore do servidor
+                fofocas_recentes = await self.memory.get_recent_server_lore(limit=3)
+
                 # Calcula a nova pontuação temp para passar pro Jeff
                 pontuacao_atual = user_profile['affinity_score'] + score_change
 
-                # Define as diretrizes com base no brain.json
+                # Define as diretrizes com base no brain.py
                 if user_id == 505806599034765323: 
                     diretriz = self.brain["directives"]["father"]
                 elif pontuacao_atual > 50:
@@ -97,13 +104,14 @@ class Jeff(commands.Cog):
                 if user_id != 505806599034765323 and (mood in ["desconfiado", "saturado"] or score_change == -10):
                     diretriz += self.brain["directives"]["clingy_warning"]
 
-                # PROMPT JEFF (Carregado do brain.json)
+                # PROMPT JEFF 
                 system_prompt = (
                     self.brain["system_prompt"]
                     .replace("{pontuacao_atual}", str(pontuacao_atual))
                     .replace("{mood}", mood)
                     .replace("{diretriz}", diretriz)
                     .replace("{contexto_mencionados}", contexto_mencionados)
+                    .replace("{fofocas_servidor}", fofocas_recentes)
                 )
 
                 messages_for_jeff = [{"role": "system", "content": system_prompt}]
