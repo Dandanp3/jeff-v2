@@ -5,6 +5,7 @@ class MemoryModel:
     def __init__(self, db):
         self.collection = db["user_memories"]
         self.entities = db["global_entities"]
+        self.server_lore = db["server_lore"]  
 
     async def update_user_identity(self, user_id: int, username: str, display_name: str, guild_nick: str = None):
         apelidos = list(set(filter(None, [username.lower(), display_name.lower(), guild_nick.lower() if guild_nick else None])))
@@ -114,3 +115,31 @@ class MemoryModel:
             {"user_id": user_id},
             {"$set": {"history": [], "affinity_score": 0, "custom_notes": ""}}
         )
+
+    # =========================================================================
+    # NOVAS FUNÇÕES PARA A LORE DO SERVIDOR
+    # =========================================================================
+
+    async def add_server_topic(self, topic: str):
+        """Salva um assunto geral que a galera tá conversando no servidor"""
+        if not topic:
+            return
+        
+        agora = datetime.now(ZoneInfo("America/Recife"))
+        await self.server_lore.insert_one({
+            "topic": topic,
+            "timestamp": agora
+        })
+
+    async def get_recent_server_lore(self, limit=5):
+        """Pega as últimas fofocas do servidor para o Jeff saber o que tá rolando"""
+        # Puxa os últimos limit tópicos ordenados pela data (do mais recente pro mais antigo)
+        cursor = self.server_lore.find().sort("timestamp", -1).limit(limit)
+        lores = await cursor.to_list(length=limit)
+        
+        if not lores:
+            return "Nenhuma fofoca recente, o mar tá tranquilo."
+        
+        # Junta tudo numa string com marcadores
+        textos = [f"- {l['topic']}" for l in lores]
+        return "\n".join(textos)
