@@ -4,7 +4,6 @@ import discord
 from discord.ext import commands
 from groq import Groq
 from server.models.memoryModel import MemoryModel
-from .brain import BRAIN
 
 class Jeff(commands.Cog):
     def __init__(self, bot):
@@ -12,11 +11,14 @@ class Jeff(commands.Cog):
         groq_token = os.getenv('GROQ_API_KEY')
         self.client = Groq(api_key=groq_token)
         
+        # Instancia a memória apontando para o banco
         self.db = self.bot.db_memory
         self.memory = MemoryModel(self.db)
 
-        # Carrega as configurações e prompts diretamente do brain.py
-        self.brain = BRAIN
+        # Carrega o arquivo brain.json do mesmo diretório onde o jeff.py está
+        brain_path = os.path.join(os.path.dirname(__file__), "brain.json")
+        with open(brain_path, "r", encoding="utf-8") as f:
+            self.brain = json.load(f)
 
     @commands.command(name="jeff", aliases=["j", "Jeff", "J"])
     async def jeff_command(self, ctx: commands.Context, *, message: str = None):
@@ -28,13 +30,13 @@ class Jeff(commands.Cog):
             try:
                 user_id = ctx.author.id
                 
-                # puxa o perfil e o histórico do user
+                # Puxa o perfil e o histórico do usuário
                 user_profile = await self.memory.get_user_profile(user_id)
                 history = await self.memory.get_history_for_ia(user_profile)
                 
                 historico_texto = "\n".join([f"{msg['role']}: {msg['content']}" for msg in history[-6:]])
 
-                # atualiza a identidade do autor da mensagem (nomes, apelidos do servidor)
+                # Atualiza a identidade no banco
                 guild_nick = ctx.author.nick if hasattr(ctx.author, 'nick') else None
                 await self.memory.update_user_identity(
                     user_id=user_id,
@@ -43,7 +45,7 @@ class Jeff(commands.Cog):
                     guild_nick=guild_nick
                 )
 
-                # busca no banco se a mensagem menciona algm conhecido (ex: "poke")
+                # Busca entidades mencionadas
                 mencionados = await self.memory.find_mentioned_entities(message)
                 contexto_mencionados = ""
                 if mencionados:
@@ -54,7 +56,7 @@ class Jeff(commands.Cog):
                         linhas.append(f"- {nome} (também chamado de {ent.get('aliases')}): Fatos conhecidos: {fatos}")
                     contexto_mencionados = "\nPESSOAS QUE FORAM CITADAS NA MENSAGEM:\n" + "\n".join(linhas)
 
-                # PROMPT JUÍZ 
+                # PROMPT JUÍZ (Lê do brain.json)
                 judge_prompt = self.brain["judge_prompt"].replace("{historico_texto}", historico_texto).replace("{message}", message)
 
                 judge_completion = self.client.chat.completions.create(
@@ -77,21 +79,17 @@ class Jeff(commands.Cog):
                     extracted_fact = None
                     server_topic = None
 
-                # Se o Juiz extraiu um fato e a mensagem citou algm, salva o fato no banco
+                # Salva fatos ou tópicos se extraídos pelo Juiz
                 if extracted_fact and mencionados:
                     await self.memory.add_fact_to_entity(mencionados[0]["user_id"], extracted_fact)
 
-                # Se o Juiz extraiu um tópico geral sobre o servidor, salva na Lore
                 if server_topic:
                     await self.memory.add_server_topic(server_topic)
 
-                # Busca as fofocas recentes salvas na lore do servidor
                 fofocas_recentes = await self.memory.get_recent_server_lore(limit=3)
-
-                # Calcula a nova pontuação temp para passar pro Jeff
                 pontuacao_atual = user_profile['affinity_score'] + score_change
 
-                # Define as diretrizes com base no brain.py
+                # Define as diretrizes
                 if user_id == 505806599034765323: 
                     diretriz = self.brain["directives"]["father"]
                 elif pontuacao_atual > 50:
@@ -104,7 +102,7 @@ class Jeff(commands.Cog):
                 if user_id != 505806599034765323 and (mood in ["desconfiado", "saturado"] or score_change == -10):
                     diretriz += self.brain["directives"]["clingy_warning"]
 
-                # PROMPT JEFF 
+                # SYSTEM PROMPT (Monta com as substituições)
                 system_prompt = (
                     self.brain["system_prompt"]
                     .replace("{pontuacao_atual}", str(pontuacao_atual))
