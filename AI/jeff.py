@@ -60,9 +60,9 @@ class Jeff(commands.Cog):
                 judge_prompt = self.brain["judge_prompt"].replace("{historico_texto}", historico_texto).replace("{message}", message)
 
                 judge_completion = self.client.chat.completions.create(
-                model="openai/gpt-oss-20b", 
-                messages=[{"role": "user", "content": judge_prompt}],
-                temperature=0.1
+                    model="llama-3.3-70b-versatile",  
+                    messages=[{"role": "user", "content": judge_prompt}],
+                    temperature=0.1
                 )
                 
                 judge_response = judge_completion.choices[0].message.content.replace("```json", "").replace("```", "").strip()
@@ -117,16 +117,16 @@ class Jeff(commands.Cog):
                 messages_for_jeff.append({"role": "user", "content": message})
 
                 chat_completion = self.client.chat.completions.create(
-                model="openai/gpt-oss-20b", 
-                messages=messages_for_jeff,
-                temperature=0.8,
-                max_tokens=100
+                    model="llama-3.3-70b-versatile",
+                    messages=messages_for_jeff,
+                    temperature=0.8,
+                    max_tokens=100
                 )
 
                 reply_text = chat_completion.choices[0].message.content
                 
                 if not reply_text or not reply_text.strip():
-                    reply_text = "ih... deu branco..."
+                    reply_text = "ue... buguei aqui"
 
                 if len(reply_text) > 2000:
                     reply_text = reply_text[:1990] + "\n..."
@@ -144,7 +144,7 @@ class Jeff(commands.Cog):
             except Exception as e:
                 import traceback
                 print("--- ERRO DETALHADO DO JEFF ---")
-                traceback.printexc()
+                traceback.print_exc()
                 print(f"Erro na API/Banco: {e}")
                 await ctx.reply(f"deu erro: `{str(e)[:100]}`")
 
