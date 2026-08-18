@@ -124,6 +124,10 @@ class Jeff(commands.Cog):
                 )
 
                 reply_text = chat_completion.choices[0].message.content
+                
+                if not reply_text or not reply_text.strip():
+                    reply_text = "ih... deu branco..."
+
                 if len(reply_text) > 2000:
                     reply_text = reply_text[:1990] + "\n..."
 
