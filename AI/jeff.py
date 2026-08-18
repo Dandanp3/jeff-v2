@@ -142,8 +142,11 @@ class Jeff(commands.Cog):
                 )
 
             except Exception as e:
+                import traceback
+                print("--- ERRO DETALHADO DO JEFF ---")
+                traceback.printexc()
                 print(f"Erro na API/Banco: {e}")
-                await ctx.reply("deu erro num sei oq foi")
+                await ctx.reply(f"deu erro: `{str(e)[:100]}`")
 
 async def setup(bot):
     await bot.add_cog(Jeff(bot))
