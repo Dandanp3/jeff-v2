@@ -60,9 +60,9 @@ class Jeff(commands.Cog):
                 judge_prompt = self.brain["judge_prompt"].replace("{historico_texto}", historico_texto).replace("{message}", message)
 
                 judge_completion = self.client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[{"role": "user", "content": judge_prompt}],
-                    temperature=0.1
+                model="llama3-8b-8192", 
+                messages=[{"role": "user", "content": judge_prompt}],
+                temperature=0.1
                 )
                 
                 judge_response = judge_completion.choices[0].message.content.replace("```json", "").replace("```", "").strip()
