@@ -60,7 +60,7 @@ class Jeff(commands.Cog):
                 judge_prompt = self.brain["judge_prompt"].replace("{historico_texto}", historico_texto).replace("{message}", message)
 
                 judge_completion = self.client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",  
+                    model="llama-3.1-8b-instant",  
                     messages=[{"role": "user", "content": judge_prompt}],
                     temperature=0.1
                 )
@@ -117,7 +117,7 @@ class Jeff(commands.Cog):
                 messages_for_jeff.append({"role": "user", "content": message})
 
                 chat_completion = self.client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
+                    model="llama-3.1-8b-instant",
                     messages=messages_for_jeff,
                     temperature=0.8,
                     max_tokens=100
