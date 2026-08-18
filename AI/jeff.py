@@ -117,10 +117,10 @@ class Jeff(commands.Cog):
                 messages_for_jeff.append({"role": "user", "content": message})
 
                 chat_completion = self.client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=messages_for_jeff,
-                    temperature=0.8,
-                    max_tokens=100
+                model="llama3-8b-8192",
+                messages=messages_for_jeff,
+                temperature=0.8,
+                max_tokens=100
                 )
 
                 reply_text = chat_completion.choices[0].message.content
